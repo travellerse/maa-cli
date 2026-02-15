@@ -206,6 +206,12 @@ impl IntoParameters for CopilotParams {
             }
         }
 
+        if stage_list.is_empty() {
+            bail!("Failed to resolve any copilot stages");
+        }
+
+        let stage_count = stage_list.len();
+
         // We also want all other parameters from overlay
         let mut params = default;
         insert!(params,
@@ -213,11 +219,20 @@ impl IntoParameters for CopilotParams {
             "use_sanity_potion" => use_sanity_potion,
             "add_trust" => add_trust,
             "ignore_requirements" => ignore_requirements,
-            "copilot_list" => stage_list?,
             "formation_index" =>? self.formation_index,
             "support_unit_usage" =>? self.support_unit_usage,
             "support_unit_name" =>? self.support_unit_name
         );
+
+        if stage_count == 1 {
+            let stage = stage_list
+                .into_iter()
+                .next()
+                .expect("Stage list must contain one entry");
+            insert!(params, "filename" => stage.filename?);
+        } else {
+            insert!(params, "copilot_list" => stage_list?);
+        }
 
         Ok(params)
     }
@@ -717,11 +732,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => false,
                         "use_sanity_potion" => false,
                         "add_trust" => false,
@@ -757,11 +768,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => true,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => true,
                         "use_sanity_potion" => true,
                         "add_trust" => true,
@@ -787,11 +794,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => false,
                         "use_sanity_potion" => false,
                         "add_trust" => false,
@@ -915,11 +918,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => true,
                         "use_sanity_potion" => false,
                         "add_trust" => false,
@@ -944,11 +943,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => false,
                         "use_sanity_potion" => true,
                         "add_trust" => false,
@@ -973,11 +968,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => false,
                         "use_sanity_potion" => false,
                         "add_trust" => true,
@@ -1002,11 +993,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => false,
                         "use_sanity_potion" => false,
                         "add_trust" => false,
@@ -1038,11 +1025,7 @@ found"}"#,
                 assert_eq!(
                     params,
                     object!(
-                        "copilot_list" => [object!(
-                            "filename" => path_from_cache_dir("40051.json"),
-                            "stage_name" => "AS-EX-1",
-                            "is_raid" => false,
-                        )],
+                        "filename" => path_from_cache_dir("40051.json"),
                         "formation" => true,
                         "use_sanity_potion" => true,
                         "add_trust" => false,
