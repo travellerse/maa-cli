@@ -118,7 +118,7 @@ struct CopilotOperator {
 }
 
 fn default_skill() -> i32 {
-    1
+    0
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -1672,7 +1672,7 @@ found"}"#,
             });
 
             let task: CopilotTask = serde_json::from_value(json).unwrap();
-            assert_eq!(task.opers[0].skill, 1);
+            assert_eq!(task.opers[0].skill, default_skill());
         }
 
         #[test]
