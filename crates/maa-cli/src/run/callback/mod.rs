@@ -229,22 +229,120 @@ fn process_subtask_error(message: &Map<String, Value>) -> Option<()> {
 
     match subtask {
         "StartGameTask" => error!("{}", "FailedToStartGame"),
-        "AutoRecruitTask" => error!("{} {}", message.get("why")?.as_str()?, "HasReturned"),
+        "StopGameTask" => error!("{}", "CloseArknightsFailed"),
+        "AutoRecruitTask" => error!(
+            "{} {}",
+            message
+                .get("why")
+                .and_then(Value::as_str)
+                .unwrap_or("ErrorOccurred"),
+            "HasReturned"
+        ),
         "RecognizeDrops" => error!("{}", "FailedToRecognizeDrops"),
-        "ReportToPenguinStats" => error!(
-            "{}, {}",
-            "FailedToReportToPenguinStats",
-            message.get("why")?.as_str()?,
-        ),
+        "ReportToPenguinStats" => error!("{}", format_penguin_stats_error(message)),
         "CheckStageValid" => error!("TheEX"),
-        _ => trace!(
-            "{}: {}",
-            "UnknownSubTaskError",
-            serde_json::to_string_pretty(message).unwrap()
-        ),
+        "BattleFormationTask" => {
+            if message.get("why")?.as_str()? == "OperatorMissing" {
+                if let Some(summary) = format_missing_operators(message.get("details")?) {
+                    error!("BattleFormationTask OperatorMissing: {summary}");
+                } else {
+                    error!("BattleFormationTask OperatorMissing");
+                }
+            } else {
+                log_unknown_subtask_error(message);
+            }
+        }
+        "CopilotTask" => {
+            if let Some(error_message) = format_copilot_task_error(message) {
+                error!("{error_message}");
+            } else {
+                log_unknown_subtask_error(message);
+            }
+        }
+        _ => log_unknown_subtask_error(message),
     };
 
     Some(())
+}
+
+fn log_unknown_subtask_error(message: &Map<String, Value>) {
+    trace!(
+        "{}: {}",
+        "UnknownSubTaskError",
+        serde_json::to_string_pretty(message).unwrap()
+    );
+}
+
+fn format_penguin_stats_error(message: &Map<String, Value>) -> String {
+    let why = message
+        .get("why")
+        .and_then(Value::as_str)
+        .unwrap_or("ErrorOccurred");
+
+    match why {
+        "UnknownStage" => {
+            let stage_code = message
+                .get("details")
+                .and_then(|details| details.get("stage_code"))
+                .and_then(Value::as_str);
+
+            match stage_code {
+                Some(stage_code) => {
+                    format!("FailedToReportToPenguinStats, UnknownStage ({stage_code})")
+                }
+                None => "FailedToReportToPenguinStats, UnknownStage".to_owned(),
+            }
+        }
+        "NotThreeStars" => "FailedToReportToPenguinStats, NotThreeStars".to_owned(),
+        "UnknownDropType" => "FailedToReportToPenguinStats, UnknownDropType".to_owned(),
+        "UnknownDrops" => "FailedToReportToPenguinStats, UnknownDrops".to_owned(),
+        _ => format!("FailedToReportToPenguinStats, {why}"),
+    }
+}
+
+fn format_copilot_task_error(message: &Map<String, Value>) -> Option<String> {
+    let what = message.get("what")?.as_str()?;
+
+    match what {
+        "UserAdditionalOperInvalid" => {
+            let name = message
+                .get("details")
+                .and_then(|details| details.get("name"))
+                .and_then(Value::as_str);
+
+            Some(match name {
+                Some(name) if !name.is_empty() => {
+                    format!("CopilotUserAdditionalNameInvalid: {name}")
+                }
+                _ => "CopilotUserAdditionalNameInvalid".to_owned(),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn format_missing_operators(details: &Value) -> Option<String> {
+    let opers = details.get("opers")?.as_object()?;
+
+    opers
+        .iter()
+        .filter_map(|(group_name, group_opers)| {
+            let summary = group_opers
+                .as_array()?
+                .iter()
+                .filter_map(|oper| {
+                    let name = oper.get("name")?.as_str()?;
+                    let reason = oper.get("reason").and_then(Value::as_str);
+                    Some(match reason {
+                        Some(reason) => format!("{name} ({reason})"),
+                        None => name.to_owned(),
+                    })
+                })
+                .join(", ")?;
+
+            Some(format!("{group_name}: {summary}"))
+        })
+        .join("; ")
 }
 fn process_subtask_start(message: &Map<String, Value>) -> Option<()> {
     let subtask = message.get("subtask")?.as_str()?;
@@ -661,10 +759,96 @@ impl<I> IterJoin for I where I: Iterator {}
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn iter_join() {
         assert_eq!([1, 2, 3].iter().join(","), Some("1,2,3".to_owned()));
         assert_eq!(Vec::<i32>::new().iter().join(","), None);
+    }
+
+    #[test]
+    fn format_missing_operators_summary() {
+        let details = json!({
+            "opers": {
+                "阻挡": [
+                    { "name": "塞雷娅", "reason": "Missing" },
+                    { "name": "蛇屠箱", "reason": "Missing" }
+                ],
+                "输出": [
+                    { "name": "能天使", "reason": "Unavailable" }
+                ]
+            }
+        });
+
+        let summary = format_missing_operators(&details).unwrap();
+        assert!(summary.contains("阻挡: 塞雷娅 (Missing), 蛇屠箱 (Missing)"));
+        assert!(summary.contains("输出: 能天使 (Unavailable)"));
+    }
+
+    #[test]
+    fn format_penguin_stats_error_unknown_stage() {
+        let message = json!({
+            "why": "UnknownStage",
+            "details": {
+                "stage_code": "1-7"
+            }
+        });
+
+        let message = message.as_object().unwrap();
+        assert_eq!(
+            format_penguin_stats_error(message),
+            "FailedToReportToPenguinStats, UnknownStage (1-7)"
+        );
+    }
+
+    #[test]
+    fn format_penguin_stats_error_defaults_to_error_occurred() {
+        let message = json!({});
+
+        let message = message.as_object().unwrap();
+        assert_eq!(
+            format_penguin_stats_error(message),
+            "FailedToReportToPenguinStats, ErrorOccurred"
+        );
+    }
+
+    #[test]
+    fn format_copilot_task_error_invalid_operator() {
+        let message = json!({
+            "what": "UserAdditionalOperInvalid",
+            "details": {
+                "name": "维什戴尔"
+            }
+        });
+
+        let message = message.as_object().unwrap();
+        assert_eq!(
+            format_copilot_task_error(message).as_deref(),
+            Some("CopilotUserAdditionalNameInvalid: 维什戴尔")
+        );
+    }
+
+    #[test]
+    fn process_subtask_error_handles_new_branches() {
+        let stop_game = json!({
+            "subtask": "StopGameTask"
+        });
+        assert!(process_subtask_error(stop_game.as_object().unwrap()).is_some());
+
+        let copilot = json!({
+            "subtask": "CopilotTask",
+            "what": "UserAdditionalOperInvalid",
+            "details": {
+                "name": "维什戴尔"
+            }
+        });
+        assert!(process_subtask_error(copilot.as_object().unwrap()).is_some());
+
+        let report = json!({
+            "subtask": "ReportToPenguinStats",
+            "why": "UnknownDrops"
+        });
+        assert!(process_subtask_error(report.as_object().unwrap()).is_some());
     }
 }
