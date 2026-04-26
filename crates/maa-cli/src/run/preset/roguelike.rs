@@ -53,6 +53,10 @@ pub struct RoguelikeParams {
     /// 3: mode for pass, not implemented yet;
     /// 4: mode that exist after 3rd floor;
     /// 5: mode for collapsal paradigms, only for Sami, use with `expected_collapsal_paradigms`
+    /// 6: monthly squad mode;
+    /// 7: exploration mode (Exploration);
+    /// 10001: Sarkaz fast pass mode (FastPass, Sarkaz only);
+    /// 20001: JieGarden find playtime mode (FindPlaytime, JieGarden only);
     #[arg(long, default_value = "0")]
     mode: i32,
 
@@ -73,6 +77,22 @@ pub struct RoguelikeParams {
     /// Stop after given count, if not given, never stop
     #[arg(long, alias = "start-count")]
     starts_count: Option<i32>,
+
+    /// Whether to purchase in collectible (mode 4)
+    #[arg(long)]
+    collectible_mode_shopping: bool,
+
+    /// First floor foldartal target for Sami collectible mode
+    #[arg(long)]
+    first_floor_foldartal: Option<String>,
+
+    /// Target playtime type for JieGarden FindPlaytime mode
+    ///
+    /// 1: 令(Ling)
+    /// 2: 黍(Shu)
+    /// 3: 年(Nian)
+    #[arg(long = "find-playTime-target")]
+    find_play_time_target: Option<i32>,
 
     /// Difficulty, not valid for Phantom theme (no numerical difficulty)
     ///
@@ -118,6 +138,10 @@ pub struct RoguelikeParams {
     #[arg(long)]
     stop_at_final_boss: bool,
 
+    /// Stop when roguelike level is maxed
+    #[arg(long)]
+    stop_at_max_level: bool,
+
     // Mizuki specific parameters
     /// Whether to refresh trader with dice (only available in Mizuki theme)
     #[arg(long)]
@@ -134,6 +158,66 @@ pub struct RoguelikeParams {
     /// A list of expected collapsal paradigms
     #[arg(short = 'P', long)]
     expected_collapsal_paradigms: Vec<String>,
+
+    /// Whether to check collapsal paradigms (Sami only)
+    #[arg(long)]
+    check_collapsal_paradigms: Option<bool>,
+
+    /// Whether to enable additional anti-miss checks for collapsal paradigms
+    #[arg(long)]
+    double_check_collapsal_paradigms: Option<bool>,
+
+    /// Automatically iterate monthly squad rewards (mode 6)
+    #[arg(long)]
+    monthly_squad_auto_iterate: bool,
+
+    /// Include monthly squad communications when auto iterating (mode 6)
+    #[arg(long)]
+    monthly_squad_check_comms: bool,
+
+    /// Automatically iterate deep exploration rewards (mode 7)
+    #[arg(long)]
+    deep_exploration_auto_iterate: bool,
+
+    /// Squad used in collectible mode (mode 4)
+    #[arg(long)]
+    collectible_mode_squad: Option<String>,
+
+    /// Collectible mode expected start reward: hot water
+    #[arg(long)]
+    collectible_start_hot_water: bool,
+
+    /// Collectible mode expected start reward: shield
+    #[arg(long)]
+    collectible_start_shield: bool,
+
+    /// Collectible mode expected start reward: ingot
+    #[arg(long)]
+    collectible_start_ingot: bool,
+
+    /// Collectible mode expected start reward: hope
+    #[arg(long)]
+    collectible_start_hope: bool,
+
+    /// Collectible mode expected start reward: random collectible
+    #[arg(long)]
+    collectible_start_random: bool,
+
+    /// Collectible mode expected start reward: key (Mizuki)
+    #[arg(long)]
+    collectible_start_key: bool,
+
+    /// Collectible mode expected start reward: dice (Mizuki)
+    #[arg(long)]
+    collectible_start_dice: bool,
+
+    /// Collectible mode expected start reward: ideas (Sarkaz)
+    #[arg(long)]
+    collectible_start_ideas: bool,
+
+    /// Collectible mode expected start reward: ticket (JieGarden)
+    #[arg(long)]
+    collectible_start_ticket: bool,
 
     // Sarkaz specific parameters
     /// Whether to start with seed, only available in Sarkaz theme and mode 1
@@ -156,8 +240,14 @@ impl super::IntoParameters for RoguelikeParams {
             5 if !matches!(theme, Theme::Sami) => {
                 bail!("Mode 5 is only available in Sami theme");
             }
-            0..=5 => {}
-            _ => bail!("Mode must be in range between 0 and 5"),
+            10001 if !matches!(theme, Theme::Sarkaz) => {
+                bail!("Mode 10001 is only available in Sarkaz theme");
+            }
+            20001 if !matches!(theme, Theme::JieGarden) => {
+                bail!("Mode 20001 is only available in JieGarden theme");
+            }
+            0..=7 | 10001 | 20001 => {}
+            _ => bail!("Mode must be in supported values (0-7, 10001, 20001)"),
         }
 
         let mut value = object!(
@@ -168,7 +258,51 @@ impl super::IntoParameters for RoguelikeParams {
             "core_char" =>? self.core_char,
             "starts_count" =>? self.starts_count,
             "stop_at_final_boss" => self.stop_at_final_boss,
+            "stop_at_max_level" => self.stop_at_max_level,
+            "monthly_squad_auto_iterate" => self.monthly_squad_auto_iterate,
+            "monthly_squad_check_comms" => self.monthly_squad_check_comms,
+            "deep_exploration_auto_iterate" => self.deep_exploration_auto_iterate,
+            "collectible_mode_squad" =>? self.collectible_mode_squad,
         );
+
+        if self.collectible_start_hot_water
+            || self.collectible_start_shield
+            || self.collectible_start_ingot
+            || self.collectible_start_hope
+            || self.collectible_start_random
+            || self.collectible_start_key
+            || self.collectible_start_dice
+            || self.collectible_start_ideas
+            || self.collectible_start_ticket
+        {
+            value.insert(
+                "collectible_mode_start_list",
+                object!(
+                    "hot_water" => self.collectible_start_hot_water,
+                    "shield" => self.collectible_start_shield,
+                    "ingot" => self.collectible_start_ingot,
+                    "hope" => self.collectible_start_hope,
+                    "random" => self.collectible_start_random,
+                    "key" => self.collectible_start_key,
+                    "dice" => self.collectible_start_dice,
+                    "ideas" => self.collectible_start_ideas,
+                    "ticket" => self.collectible_start_ticket,
+                )
+                .into(),
+            );
+        }
+
+        if self.collectible_mode_shopping {
+            value.insert("collectible_mode_shopping", true.into());
+        }
+        if let Some(first_floor_foldartal) = self.first_floor_foldartal
+            && !first_floor_foldartal.is_empty()
+        {
+            value.insert("first_floor_foldartal", first_floor_foldartal.into());
+        }
+        if let Some(find_play_time_target) = self.find_play_time_target {
+            value.insert("find_playTime_target", find_play_time_target.into());
+        }
 
         // Difficulty setting (not valid for Phantom theme)
         if matches!(theme, Theme::Phantom) {
@@ -221,17 +355,22 @@ impl super::IntoParameters for RoguelikeParams {
                     insert!(value, "start_foldartal_list" => self.start_foldartals?);
                 }
 
-                if mode == 5 {
-                    if self.expected_collapsal_paradigms.is_empty() {
-                        bail!(
-                            "At least one expected collapsal paradigm is required when mode 5 is enabled"
-                        );
-                    }
-                    insert!(value,
-                        "check_collapsal_paradigms" => true,
-                        "double_check_collapsal_paradigms" => true,
-                        "expected_collapsal_paradigms" => self.expected_collapsal_paradigms?,
+                if let Some(check) = self.check_collapsal_paradigms {
+                    value.insert("check_collapsal_paradigms", check.into());
+                } else if mode == 5 {
+                    value.insert("check_collapsal_paradigms", true.into());
+                }
 
+                if let Some(double_check) = self.double_check_collapsal_paradigms {
+                    value.insert("double_check_collapsal_paradigms", double_check.into());
+                } else if mode == 5 {
+                    value.insert("double_check_collapsal_paradigms", true.into());
+                }
+
+                if !self.expected_collapsal_paradigms.is_empty() {
+                    insert!(
+                        value,
+                        "expected_collapsal_paradigms" => self.expected_collapsal_paradigms?,
                     );
                 }
             }
@@ -324,6 +463,10 @@ mod tests {
             "investment_with_more_score" => false,
             "stop_when_investment_full" => true,
             "stop_at_final_boss" => false,
+            "stop_at_max_level" => false,
+            "monthly_squad_auto_iterate" => false,
+            "monthly_squad_check_comms" => false,
+            "deep_exploration_auto_iterate" => false,
         );
 
         assert_eq!(
@@ -331,7 +474,7 @@ mod tests {
             default_params.join(object!("theme" => "Phantom")),
         );
         assert!(parse(["maa", "roguelike", "Phantom", "--mode", "5"]).is_err());
-        assert!(parse(["maa", "roguelike", "Phantom", "--mode", "7"]).is_err());
+        assert!(parse(["maa", "roguelike", "Phantom", "--mode", "7"]).is_ok());
 
         // Difficulty is ignored for Phantom theme
         assert_eq!(
@@ -365,6 +508,22 @@ mod tests {
         );
 
         assert_eq!(
+            parse([
+                "maa",
+                "roguelike",
+                "Sarkaz",
+                "--starts-count=150",
+                "--difficulty=7",
+            ])
+            .unwrap(),
+            default_params.join(object!(
+                "theme" => "Sarkaz",
+                "starts_count" => 150,
+                "difficulty" => 7,
+            )),
+        );
+
+        assert_eq!(
             parse(["maa", "roguelike", "Sarkaz", "--disable-investment"]).unwrap(),
             // Can't use default_params here because some fields are removed in this case
             object!(
@@ -372,6 +531,10 @@ mod tests {
                 "mode" => 0,
                 "investment_enabled" => false,
                 "stop_at_final_boss" => false,
+                "stop_at_max_level" => false,
+                "monthly_squad_auto_iterate" => false,
+                "monthly_squad_check_comms" => false,
+                "deep_exploration_auto_iterate" => false,
             ),
         );
         assert_eq!(
@@ -449,7 +612,16 @@ mod tests {
                 ]),
             )),
         );
-        assert!(parse(["maa", "roguelike", "Sami", "--mode", "5"]).is_err());
+        assert_eq!(
+            parse(["maa", "roguelike", "Sami", "--mode", "5"]).unwrap(),
+            default_params.join(object!(
+                "theme" => "Sami",
+                "mode" => 5,
+                "use_foldartal" => false,
+                "check_collapsal_paradigms" => true,
+                "double_check_collapsal_paradigms" => true,
+            )),
+        );
         assert_eq!(
             parse([
                 "maa",
@@ -486,6 +658,92 @@ mod tests {
                 "theme" => "Sarkaz",
                 "mode" => 1,
                 "start_with_seed" => true,
+            )),
+        );
+
+        assert_eq!(
+            parse([
+                "maa",
+                "roguelike",
+                "Sami",
+                "--mode=4",
+                "--collectible-mode-shopping",
+                "--first-floor-foldartal",
+                "英雄",
+                "--use-foldartal",
+                "--collectible-mode-squad",
+                "生活至上分队",
+                "--collectible-start-hot-water",
+                "--collectible-start-random",
+                "-F英雄",
+            ])
+            .unwrap(),
+            default_params.join(object!(
+                "theme" => "Sami",
+                "mode" => 4,
+                "collectible_mode_shopping" => true,
+                "collectible_mode_squad" => "生活至上分队",
+                "collectible_mode_start_list" => object!(
+                    "hot_water" => true,
+                    "shield" => false,
+                    "ingot" => false,
+                    "hope" => false,
+                    "random" => true,
+                    "key" => false,
+                    "dice" => false,
+                    "ideas" => false,
+                    "ticket" => false,
+                ),
+                "first_floor_foldartal" => "英雄",
+                "use_foldartal" => true,
+                "start_foldartal_list" => MAAValue::Array(vec![MAAValue::from("英雄")]),
+            )),
+        );
+
+        assert_eq!(
+            parse([
+                "maa",
+                "roguelike",
+                "Sami",
+                "--check-collapsal-paradigms",
+                "true",
+                "--double-check-collapsal-paradigms",
+                "false",
+                "-P目空一些",
+            ])
+            .unwrap(),
+            default_params.join(object!(
+                "theme" => "Sami",
+                "use_foldartal" => false,
+                "check_collapsal_paradigms" => true,
+                "double_check_collapsal_paradigms" => false,
+                "expected_collapsal_paradigms" => MAAValue::Array(vec![MAAValue::from("目空一些")]),
+            )),
+        );
+
+        assert_eq!(
+            parse([
+                "maa",
+                "roguelike",
+                "JieGarden",
+                "--mode",
+                "20001",
+                "--find-playTime-target",
+                "2",
+            ])
+            .unwrap(),
+            default_params.join(object!(
+                "theme" => "JieGarden",
+                "mode" => 20001,
+                "find_playTime_target" => 2,
+            )),
+        );
+
+        assert_eq!(
+            parse(["maa", "roguelike", "Sarkaz", "--mode", "10001",]).unwrap(),
+            default_params.join(object!(
+                "theme" => "Sarkaz",
+                "mode" => 10001,
             )),
         );
     }
