@@ -657,6 +657,21 @@ impl std::fmt::Display for RecruitDetail {
     }
 }
 
+pub struct SettlementInfo {
+    pub game_pass: bool,
+    pub floor: i64,
+    pub step: i64,
+    pub combat: i64,
+    pub emergency: i64,
+    pub boss: i64,
+    pub recruit: i64,
+    pub collection: i64,
+    pub difficulty: i64,
+    pub score: i64,
+    pub exp: i64,
+    pub skill: String,
+}
+
 pub struct RoguelikeDetail {
     explorations: Vec<ExplorationDetail>,
 }
@@ -688,9 +703,9 @@ impl RoguelikeDetail {
         }
     }
 
-    pub(super) fn set_exp(&mut self, exp: i64) {
+    pub(super) fn set_settlement(&mut self, info: SettlementInfo) {
         if let Some(exploration) = self.get_current_exploration() {
-            exploration.set_exp(exp);
+            exploration.set_settlement(info);
         }
     }
 }
@@ -780,6 +795,17 @@ struct ExplorationDetail {
     invest: Option<i64>,
     /// total exp gained of this exploration
     exp: Option<i64>,
+    game_pass: Option<bool>,
+    floor: Option<i64>,
+    step: Option<i64>,
+    combat: Option<i64>,
+    emergency: Option<i64>,
+    boss: Option<i64>,
+    recruit: Option<i64>,
+    collection: Option<i64>,
+    difficulty: Option<i64>,
+    score: Option<i64>,
+    skill: Option<String>,
 }
 
 impl ExplorationDetail {
@@ -788,6 +814,17 @@ impl ExplorationDetail {
             state: ExplorationState::Unknown,
             invest: None,
             exp: None,
+            game_pass: None,
+            floor: None,
+            step: None,
+            combat: None,
+            emergency: None,
+            boss: None,
+            recruit: None,
+            collection: None,
+            difficulty: None,
+            score: None,
+            skill: None,
         }
     }
 
@@ -802,19 +839,36 @@ impl ExplorationDetail {
         }
     }
 
-    pub(super) fn set_exp(&mut self, exp: i64) {
-        self.exp = Some(exp)
+    pub(super) fn set_settlement(&mut self, info: SettlementInfo) {
+        self.game_pass = Some(info.game_pass);
+        self.floor = Some(info.floor);
+        self.step = Some(info.step);
+        self.combat = Some(info.combat);
+        self.emergency = Some(info.emergency);
+        self.boss = Some(info.boss);
+        self.recruit = Some(info.recruit);
+        self.collection = Some(info.collection);
+        self.difficulty = Some(info.difficulty);
+        self.score = Some(info.score);
+        self.exp = Some(info.exp);
+        self.skill = Some(info.skill);
     }
 }
 
 impl std::fmt::Display for ExplorationDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.state)?;
+        if let Some(floor) = self.floor {
+            write!(f, ", Floor {floor}")?;
+        }
+        if let Some(score) = self.score {
+            write!(f, ", Score {score}")?;
+        }
         if let Some(invest) = self.invest {
-            write!(f, ", invest {invest} originium ingotes")?;
+            write!(f, ", invest {invest}")?;
         }
         if let Some(exp) = self.exp {
-            write!(f, ", gained {exp} exp")?;
+            write!(f, ", gained {exp}")?;
         }
         Ok(())
     }
@@ -1148,23 +1202,49 @@ mod tests {
             detail.start_exploration();
             detail.invest(10);
             detail.set_state(ExplorationState::Failed);
-            detail.set_exp(100);
+            detail.set_settlement(SettlementInfo {
+                game_pass: false,
+                floor: 3,
+                step: 10,
+                combat: 8,
+                emergency: 2,
+                boss: 1,
+                recruit: 4,
+                collection: 6,
+                difficulty: 3,
+                score: 2400,
+                exp: 100,
+                skill: "ExampleSkill".to_owned(),
+            });
             detail.start_exploration();
             detail.invest(17);
             detail.invest(1);
             detail.set_state(ExplorationState::Passed);
-            detail.set_exp(200);
+            detail.set_settlement(SettlementInfo {
+                game_pass: true,
+                floor: 6,
+                step: 20,
+                combat: 12,
+                emergency: 3,
+                boss: 2,
+                recruit: 5,
+                collection: 8,
+                difficulty: 6,
+                score: 6500,
+                exp: 200,
+                skill: "TestSkill".to_owned(),
+            });
             detail.start_exploration();
             assert_eq!(
                 detail.to_string(),
                 "Explorations:\n\
-                1. Failed, invest 10 originium ingotes, gained 100 exp;\n\
-                2. Passed, invest 18 originium ingotes, gained 200 exp;\n\
-                3. Unknown;\n\
-                Summary:\n\
-                Passed 1, Failed 1, Unknown 1\n\
-                Total invest 28 originium ingotes\n\
-                Total gained 300 exp\n",
+                 1. Failed, Floor 3, Score 2400, invest 10, gained 100;\n\
+                 2. Passed, Floor 6, Score 6500, invest 18, gained 200;\n\
+                 3. Unknown;\n\
+                 Summary:\n\
+                 Passed 1, Failed 1, Unknown 1\n\
+                 Total invest 28 originium ingotes\n\
+                 Total gained 300 exp\n",
             );
         }
     }

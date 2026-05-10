@@ -291,7 +291,14 @@ impl MaaCallback {
                 "StageEmergencyOps" | "StageEmergencyDps" => info!("{}", "EmergencyOpsEnter"),
                 "StageDreadfulFoe" | "StageDreadfulFoe-5Enter" => info!("{}", "DreadfulFoe"),
                 "StageTraderInvestSystemFull" => warn!("{}", "TraderInvestSystemFull"),
-                "GamePass" => info!("{}", "RoguelikeGamePass"),
+                "GamePass" => {
+                    edit_current_task_detail(|detail| {
+                        if let Some(detail) = detail.as_roguelike_mut() {
+                            detail.set_state(summary::ExplorationState::Passed)
+                        }
+                    });
+                    info!("{}", "RoguelikeGamePass")
+                }
                 "OfflineConfirm" => {
                     warn!("{}", "GameOffline");
                     if !self.auto_reconnect {
@@ -515,13 +522,43 @@ impl MaaCallback {
                 info!("Deposit {count} / {total} / {deposit} originium ingots")
             }
             "RoguelikeSettlement" => {
-                let exp = details.get("exp")?.as_i64()?;
+                let game_pass = details.get("game_pass")?.as_bool()?;
+                let floor = details.get("floor")?.as_i64()?;
+                let step = details.get("step")?.as_i64()?;
+                let combat = details.get("combat")?.as_i64()?;
+                let emergency = details.get("emergency")?.as_i64()?;
+                let boss = details.get("boss")?.as_i64()?;
+                let recruit = details.get("recruit")?.as_i64()?;
+                let collection = details.get("collection")?.as_i64()?;
+                let difficulty = details.get("difficulty")?.as_i64()?;
+                let score = details.get("score")?.as_i64()?;
+                let exp_str = details.get("exp")?.as_str()?;
+                let exp: i64 = exp_str.parse().unwrap_or(0);
+                let skill = details.get("skill")?.as_str()?;
+
                 edit_current_task_detail(|detail| {
                     if let Some(detail) = detail.as_roguelike_mut() {
-                        detail.set_exp(exp)
+                        detail.set_settlement(summary::SettlementInfo {
+                            game_pass,
+                            floor,
+                            step,
+                            combat,
+                            emergency,
+                            boss,
+                            recruit,
+                            collection,
+                            difficulty,
+                            score,
+                            exp,
+                            skill: skill.to_owned(),
+                        });
                     }
                 });
-                info!("Gain {exp} exp during this exploration");
+
+                let pass_mark = if game_pass { "✓" } else { "✗" };
+                info!(
+                    "Settlement: {pass_mark} Floor {floor} Score {score} (combat {combat}+{emergency}e boss {boss} rec {recruit} col {collection} diff {difficulty}) exp {exp} skill {skill}"
+                );
             }
 
             // Copilot
@@ -552,6 +589,89 @@ impl MaaCallback {
             "SSSSettlement" => info!("{} {}", "SSSSettlement", details.get("why")?.as_str()?),
             "SSSGamePass" => info!("{}", "SSSGamePass"),
             "UnsupportedLevel" => error!("{}", "UnsupportedLevel"),
+
+            // Roguelike additional events (learned from WPF)
+            "RoguelikeEvent" => {
+                let name = details.get("name")?.as_str()?;
+                info!("Event: {name}");
+            }
+            "RoguelikeEncounterOptions" => {
+                let options = details.get("options")?.as_array()?;
+                let mut msg = format!("Encounter Options ({}):", options.len());
+                for opt in options {
+                    if let (Some(text), Some(enabled)) = (
+                        opt.get("text").and_then(|v| v.as_str()),
+                        opt.get("enabled").and_then(|v| v.as_bool()),
+                    ) {
+                        if enabled {
+                            let _ = write!(msg, "\n  + {text}");
+                        } else {
+                            let _ = write!(msg, "\n  - {text} (disabled)");
+                        }
+                    }
+                }
+                info!("{msg}");
+            }
+            "RoguelikeCollapsalParadigms" => {
+                let deepen_or_weaken = details.get("deepen_or_weaken").and_then(|v| {
+                    v.as_i64()
+                        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                })?;
+                let cur = details.get("cur").and_then(|v| v.as_str()).unwrap_or("");
+                let prev = details.get("prev").and_then(|v| v.as_str()).unwrap_or("");
+
+                match (deepen_or_weaken, cur.is_empty(), prev.is_empty()) {
+                    (1, _, true) => info!("Gain paradigm: {cur}"),
+                    (1, _, false) => info!("Deepen paradigm: {cur} (was {prev})"),
+                    (-1, true, _) => info!("Lose paradigm: {prev}"),
+                    (-1, false, _) => info!("Weaken paradigm: {cur} (was {prev})"),
+                    _ => trace!("Unknown paradigm change: {deepen_or_weaken}"),
+                }
+            }
+            "RoguelikeCoppersExchangeInfo" => {
+                let to_discard = details.get("to_discard")?.as_str()?;
+                let to_pickup = details.get("to_pickup")?.as_str()?;
+                info!("Coppers exchange: discard {to_discard}, pickup {to_pickup}");
+            }
+            "RoguelikeCoppersRecognitionError" => {
+                let recognized = details
+                    .get("recognized_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown");
+                error!("Coppers recognition error: {recognized}");
+            }
+            "RoguelikeJieGardenTargetFound" => {
+                let target = details.get("target_subtype")?.as_str()?;
+                info!("Target found: {target}");
+            }
+            "BoskyPassageNode" => {
+                let node_type = details.get("node_type")?.as_str()?;
+                info!("Bosky node: {node_type}");
+            }
+            "MonthlySquadCompleted" => {
+                info!("{}", "Monthly squad completed");
+            }
+            "DeepExplorationCompleted" => {
+                info!("{}", "Deep exploration completed");
+            }
+            "FoldartalGainOcrNextLevel" => {
+                let foldartal = details.get("foldartal")?.as_str()?;
+                info!("Next floor foldartal: {foldartal}");
+            }
+            "EncounterOcrError" => {
+                error!("{}", "Encounter OCR error");
+            }
+            "RoguelikeInvestmentReachFull" => {
+                info!("{}", "Investment reached full (999)");
+            }
+            "RoguelikeInvestmentReachLimit" => {
+                let limit = details.get("limit")?.as_i64()?;
+                info!("Investment reached limit: {limit}");
+            }
+            "RoguelikeCombatEnd" => {
+                // no visible log output needed
+            }
+
             _ => trace!("{}: {}", "UnknownSubTaskExtraInfo", json_pretty(message)),
         }
 
