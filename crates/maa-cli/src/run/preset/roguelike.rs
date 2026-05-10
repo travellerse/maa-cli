@@ -56,7 +56,7 @@ pub struct RoguelikeParams {
     /// 6: monthly squad mode;
     /// 7: exploration mode (Exploration);
     /// 10001: Sarkaz fast pass mode (FastPass, Sarkaz only);
-    /// 20001: JieGarden find playtime mode (FindPlaytime, JieGarden only);
+    /// 20001: JieGarden find bosky node mode (FindBoskyNode, JieGarden only);
     #[arg(long, default_value = "0")]
     mode: i32,
 
@@ -86,13 +86,12 @@ pub struct RoguelikeParams {
     #[arg(long)]
     first_floor_foldartal: Option<String>,
 
-    /// Target playtime type for JieGarden FindPlaytime mode
+    /// Target bosky node type for JieGarden FindBoskyNode mode
     ///
-    /// 1: 令(Ling)
-    /// 2: 黍(Shu)
-    /// 3: 年(Nian)
-    #[arg(long = "find-playTime-target")]
-    find_play_time_target: Option<i32>,
+    /// FindPlaytime: 刷常乐节点 (令/黍/年)
+    /// FindSchemeBox: 刷筹谋节点 (天圆地方+抛出钱盒)
+    #[arg(long = "find-bosky-node-target")]
+    find_bosky_node_target: Option<String>,
 
     /// Difficulty, not valid for Phantom theme (no numerical difficulty)
     ///
@@ -300,8 +299,8 @@ impl super::IntoParameters for RoguelikeParams {
         {
             value.insert("first_floor_foldartal", first_floor_foldartal.into());
         }
-        if let Some(find_play_time_target) = self.find_play_time_target {
-            value.insert("find_playTime_target", find_play_time_target.into());
+        if let Some(find_bosky_node_target) = self.find_bosky_node_target {
+            value.insert("find_bosky_node_target", find_bosky_node_target.into());
         }
 
         // Difficulty setting (not valid for Phantom theme)
@@ -728,14 +727,32 @@ mod tests {
                 "JieGarden",
                 "--mode",
                 "20001",
-                "--find-playTime-target",
-                "2",
+                "--find-bosky-node-target",
+                "FindPlaytime",
             ])
             .unwrap(),
             default_params.join(object!(
                 "theme" => "JieGarden",
                 "mode" => 20001,
-                "find_playTime_target" => 2,
+                "find_bosky_node_target" => "FindPlaytime",
+            )),
+        );
+
+        assert_eq!(
+            parse([
+                "maa",
+                "roguelike",
+                "JieGarden",
+                "--mode",
+                "20001",
+                "--find-bosky-node-target",
+                "FindSchemeBox",
+            ])
+            .unwrap(),
+            default_params.join(object!(
+                "theme" => "JieGarden",
+                "mode" => 20001,
+                "find_bosky_node_target" => "FindSchemeBox",
             )),
         );
 
