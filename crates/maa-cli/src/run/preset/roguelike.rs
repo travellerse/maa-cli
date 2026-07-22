@@ -11,6 +11,7 @@ pub enum Theme {
     Sami,
     Sarkaz,
     JieGarden,
+    Blackflow,
 }
 
 impl Theme {
@@ -21,6 +22,7 @@ impl Theme {
             Self::Sami => "Sami",
             Self::Sarkaz => "Sarkaz",
             Self::JieGarden => "JieGarden",
+            Self::Blackflow => "BlackFlow",
         }
     }
 }
@@ -33,11 +35,17 @@ impl ValueEnum for Theme {
             Self::Sami,
             Self::Sarkaz,
             Self::JieGarden,
+            Self::Blackflow,
         ]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
-        Some(clap::builder::PossibleValue::new(self.to_str()))
+        Some(match self {
+            // MaaCore only accepts the canonical theme key "BlackFlow" (see
+            // RoguelikeTheme::BlackFlow in MaaCore), keep "Blackflow" as a CLI alias.
+            Self::Blackflow => clap::builder::PossibleValue::new("BlackFlow").alias("Blackflow"),
+            _ => clap::builder::PossibleValue::new(self.to_str()),
+        })
     }
 }
 
@@ -400,6 +408,7 @@ mod tests {
             assert_eq!(Theme::Sami.to_str(), "Sami");
             assert_eq!(Theme::Sarkaz.to_str(), "Sarkaz");
             assert_eq!(Theme::JieGarden.to_str(), "JieGarden");
+            assert_eq!(Theme::Blackflow.to_str(), "BlackFlow");
         }
 
         #[test]
@@ -410,6 +419,7 @@ mod tests {
                 Theme::Sami,
                 Theme::Sarkaz,
                 Theme::JieGarden,
+                Theme::Blackflow,
             ]);
         }
 
@@ -434,6 +444,10 @@ mod tests {
             assert_eq!(
                 Theme::JieGarden.to_possible_value(),
                 Some(clap::builder::PossibleValue::new("JieGarden"))
+            );
+            assert_eq!(
+                Theme::Blackflow.to_possible_value(),
+                Some(clap::builder::PossibleValue::new("BlackFlow").alias("Blackflow"))
             );
         }
     }
@@ -471,6 +485,14 @@ mod tests {
         assert_eq!(
             parse(["maa", "roguelike", "Phantom"]).unwrap(),
             default_params.join(object!("theme" => "Phantom")),
+        );
+        assert_eq!(
+            parse(["maa", "roguelike", "Blackflow"]).unwrap(),
+            default_params.join(object!("theme" => "BlackFlow")),
+        );
+        assert_eq!(
+            parse(["maa", "roguelike", "BlackFlow"]).unwrap(),
+            default_params.join(object!("theme" => "BlackFlow")),
         );
         assert!(parse(["maa", "roguelike", "Phantom", "--mode", "5"]).is_err());
         assert!(parse(["maa", "roguelike", "Phantom", "--mode", "7"]).is_ok());

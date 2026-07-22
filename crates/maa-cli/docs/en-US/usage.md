@@ -44,7 +44,7 @@ For common tasks, maa-cli provides several predefined options:
 - `maa fight [stage]`: Run a combat task. `[stage]` is the stage name like `1-7`; leave empty to select the last or current stage.
 - `maa copilot <maa_uri>...`: Auto-run copilot tasks. `<maa_uri>` is the task URI, multiple URIs will execute in sequence. `maa_uri` can be `maa://1234` or a local file path like `./1234.json`.
 - `maa sscopilot <maa_uri>`: Auto-run Stationary Security Service tasks. `<maa_uri>` is the task URI.
-- `maa roguelike <theme>`: Auto-run Integrated Strategy. `<theme>` is the theme, with options including `Phantom`, `Mizuki`, `Sami`, `Sarkaz`, and `JieGarden`.
+- `maa roguelike <theme>`: Auto-run Integrated Strategy. `<theme>` is the theme, with options including `Phantom`, `Mizuki`, `Sami`, `Sarkaz`, `JieGarden`, and `Blackflow`.
 - `maa reclamation <theme>`: Auto-run Reclamation Algorithm. `<theme>` is the theme, currently only `Tales` is available.
 
 These tasks accept various parameters. You can view the specific parameters with `maa <task> --help`.
