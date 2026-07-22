@@ -44,7 +44,7 @@ MaaCore의 설치 및 구성을 완료하면 작업을 실행할 준비가 된 �
 - `maa fight [stage]`: 전투 작업을 실행합니다. `[stage]`는 스테이지 이름이며, 예를 들어 `1-7`입니다. 생략하면 이전 또는 현재 스테이지를 선택합니다.
 - `maa copilot <maa_uri>...`: 자동 전투 작업을 실행합니다. `<maa_uri>`는 작업의 URI이며, 여러 URI는 순차적으로 실행됩니다. `maa_uri`는 `maa://1234` 또는 로컬 파일 경로 `./1234.json`일 수 있습니다.
 - `maa sscopilot <maa_uri>`: 자동 보안 파견을 실행합니다. `<maa_uri>`는 보안 파견 작업의 URI입니다.
-- `maa roguelike <theme>`: 자동 통합 전략을 실행합니다. `<theme>`는 통합 전략의 주제이며, 선택 가능한 값은 `Phantom`, `Mizuki`, `Sami`, `Sarkaz`, `JieGarden`입니다.
+- `maa roguelike <theme>`: 자동 통합 전략을 실행합니다. `<theme>`는 통합 전략의 주제이며, 선택 가능한 값은 `Phantom`, `Mizuki`, `Sami`, `Sarkaz`, `JieGarden`, `Blackflow`입니다.
 - `maa reclamation <theme>`: 자동 생활 게임을 실행합니다. `<theme>`는 생활 게임의 주제이며, 현재 사용 가능한 값은 `Tales`입니다.
 
 위 작업들은 몇 가지 매개변수를 받습니다. `maa <task> --help` 명령어를 통해 자세한 매개변수를 확인할 수 있습니다.
